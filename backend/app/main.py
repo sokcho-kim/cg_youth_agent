@@ -16,8 +16,6 @@ os.environ["ANONYMIZED_TELEMETRY"] = "False"
 # 모듈 import
 from dataLoader import get_vectorstore_and_retriever
 from llm_manager import (
-    rag_enabled, 
-    llm, 
     get_or_create_memory, 
     extract_user_profile, 
     create_qa_chain, 
@@ -67,14 +65,11 @@ async def health_check():
         "status": "healthy", 
         "vectorstore_docs": vectorstore_docs,
         "active_sessions": get_active_sessions_count(),
-        "rag_enabled": rag_enabled and vectorstore_enabled
+        "rag_enabled": vectorstore_enabled
     }
 
 @app.post("/chat")
 async def chat_with_bot(request: ChatRequest):
-    if not rag_enabled:
-        return {"response": "[오류] OpenAI API Key가 설정되어 있지 않거나 벡터스토어 초기화에 실패하여 AI 답변 기능이 비활성화되어 있습니다. 환경 변수 OPENAI_API_KEY를 설정해주세요."}
-    
     if retriever is None:
         return {"response": "[오류] 벡터스토어가 초기화되지 않아 RAG 기능을 사용할 수 없습니다."}
     
@@ -87,12 +82,10 @@ async def chat_with_bot(request: ChatRequest):
     # 사용자 프로필 추출
     current_user_profile, search_query_from_analysis = extract_user_profile(user_message, session_id)
 
-    # QA 체인 생성
-    qa_chain = create_qa_chain(llm, retriever, memory, current_user_profile)
-
+    # QA 체인 생성 및 답변 생성 (llm 인자 제거)
     try:
-        response = qa_chain.invoke({"question": user_message})
-        return {"response": response["answer"]}
+        answer = create_qa_chain(retriever, memory, current_user_profile, user_message)
+        return {"response": answer}
     except Exception as e:
         print(f"[OpenAI API Error] {e}")
         return {"response": "[오류] 일시적으로 AI 답변이 불가합니다. 네트워크 또는 OpenAI 서버 연결 문제일 수 있습니다."}

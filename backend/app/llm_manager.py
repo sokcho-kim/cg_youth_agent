@@ -1,28 +1,18 @@
 import os
 import json
-from langchain_openai import ChatOpenAI
+import requests
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain_chroma import Chroma
 
-# 환경 변수에서 OpenAI API 키 로드
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+# LLM 호출을 /ask API로만 수행
+ASK_API_URL = os.environ.get("ASK_API_URL", "https://youth-chatbot-backend.onrender.com/ask")
 
-# LLM/RAG 사용 가능 여부 플래그
-rag_enabled = True
-try:
-    # API Key 유효성 체크
-    if not OPENAI_API_KEY:
-        rag_enabled = False
-except Exception:
-    rag_enabled = False
-
-# LLM 초기화
-llm = None
-if rag_enabled:
-    llm = ChatOpenAI(model_name="gpt-4o", temperature=0)
+def call_llm_via_ask(prompt: str) -> str:
+    response = requests.post(ASK_API_URL, json={"prompt": prompt})
+    response.raise_for_status()
+    return response.json()["response"]
 
 # 세션별 대화 메모리 저장소 (개발용: 실제 서비스에서는 외부 DB 사용)
 session_memories = {}
@@ -49,7 +39,6 @@ Output as JSON. Leave empty string if information is not available.
 ---
 User's Request: {user_input}
 """
-initial_analysis_llm = ChatOpenAI(model_name="gpt-4o", temperature=0.1)
 initial_analysis_prompt = PromptTemplate.from_template(initial_analysis_prompt_template)
 
 # Enhanced QA prompt for better RAG performance
@@ -106,16 +95,14 @@ def extract_user_profile(user_message, session_id):
     
     if current_user_profile == "정보 없음":
         try:
-            analysis_chain = initial_analysis_prompt | initial_analysis_llm
-            analysis_response = analysis_chain.invoke({"user_input": user_message}).content
+            prompt = initial_analysis_prompt.format(user_input=user_message)
+            analysis_response = call_llm_via_ask(prompt)
             initial_info = json.loads(analysis_response)
-
             extracted_profile = initial_info.get("user_profile")
             if extracted_profile and extracted_profile != "정보 없음":
                 user_profiles_db[session_id] = user_profiles_db.get(session_id, {})
                 user_profiles_db[session_id]["user_profile"] = extracted_profile
                 current_user_profile = extracted_profile
-
             search_query_from_analysis = initial_info.get("optimized_search_query", user_message)
         except json.JSONDecodeError:
             print("Warning: Initial analysis did not return valid JSON.")
@@ -125,8 +112,8 @@ def extract_user_profile(user_message, session_id):
             search_query_from_analysis = user_message
     else:
         try:
-            analysis_chain = initial_analysis_prompt | initial_analysis_llm
-            analysis_response = analysis_chain.invoke({"user_input": user_message}).content
+            prompt = initial_analysis_prompt.format(user_input=user_message)
+            analysis_response = call_llm_via_ask(prompt)
             initial_info = json.loads(analysis_response)
             search_query_from_analysis = initial_info.get("optimized_search_query", user_message)
         except (json.JSONDecodeError, Exception):
@@ -134,17 +121,16 @@ def extract_user_profile(user_message, session_id):
     
     return current_user_profile, search_query_from_analysis
 
-def create_qa_chain(llm, retriever, memory, user_profile):
-    """QA 체인 생성"""
-    return ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=retriever,
-        memory=memory,
-        combine_docs_chain_kwargs={
-            "prompt": QA_PROMPT,
-            "template_extra_variables": {"user_profile_data": user_profile}
-        }
+def create_qa_chain(retriever, memory, user_profile, question):
+    # QA 프롬프트를 /ask API로 호출하여 답변 생성
+    prompt = QA_PROMPT.format(
+        user_profile_data=user_profile,
+        chat_history="",  # 필요시 메모리에서 가져와서 추가
+        context="",        # 필요시 retriever에서 가져와서 추가
+        question=question
     )
+    answer = call_llm_via_ask(prompt)
+    return answer
 
 def get_active_sessions_count():
     """활성 세션 수 반환"""
