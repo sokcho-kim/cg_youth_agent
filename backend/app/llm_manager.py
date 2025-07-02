@@ -23,7 +23,7 @@ user_profiles_db = {}
 
 # User information extraction prompt (English for better performance)
 initial_analysis_prompt_template = """
-You are an expert policy analyst. Analyze the user's request and extract the following information:
+You are an expert policy analyst. Analyze the user's request and extract the following information. Respond in JSON format only:
 
 1. residence: User's residence (e.g., "Seoul", "Gyeonggi", "Other regions")
 2. age: User's age (number or age group like "20s", "30s")
@@ -42,7 +42,7 @@ User's Request: {user_input}
 initial_analysis_prompt = PromptTemplate.from_template(initial_analysis_prompt_template)
 
 # Enhanced QA prompt for better RAG performance
-qa_prompt_template = """You are a knowledgeable and empathetic policy assistant specializing in Korean government policies. Provide accurate, comprehensive, and user-centric information based ONLY on the provided policy documents and chat history.
+qa_prompt_template = """You are a knowledgeable and empathetic policy assistant specializing in Korean government policies. You MUST respond in Korean language only. Provide accurate, comprehensive, and user-centric information based ONLY on the provided policy documents and chat history.
 
 ---
 # USER PROFILE #
@@ -74,8 +74,9 @@ Instructions for Answer Generation:
    - Related links (관련링크) if available
 7. **URL Inclusion**: Include relevant policy URLs at the end, clearly labeled as "자세히 보기:" or "관련 정책 URL:". Do not invent URLs.
 8. **Clarity**: Use clear, concise, and easy-to-understand Korean language. Avoid jargon when possible.
+9. **Language Requirement**: ALWAYS respond in Korean language only. Do not use English or any other language in your response.
 
-Helpful and Tailored Answer:
+Helpful and Tailored Answer (반드시 한국어로 답변):
 """
 QA_PROMPT = PromptTemplate.from_template(qa_prompt_template)
 
