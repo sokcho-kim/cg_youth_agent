@@ -1,3 +1,7 @@
+# 실행 방법 (로컬):
+# cd backend
+# python -m app.main
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -14,7 +18,7 @@ load_dotenv()
 # ChromaDB 텔레메트리 비활성화
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 # 모듈 import
-from dataLoader import get_vectorstore_and_retriever
+from .dataLoader import get_vectorstore_and_retriever
 from llm_manager import (
     get_or_create_memory, 
     extract_user_profile, 
