@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     JSON.stringify({
       id: Date.now().toString(),
       role: "assistant",
-      content: data.response
+      response: data.response
     }),
     { headers: { "Content-Type": "application/json" } }
   );
