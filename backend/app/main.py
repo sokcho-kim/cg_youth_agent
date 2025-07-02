@@ -8,7 +8,6 @@ from pydantic import BaseModel
 
 import os
 import json
-import openai
 from dotenv import load_dotenv
 from .ask_api import router as ask_router
 
