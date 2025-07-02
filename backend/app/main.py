@@ -11,6 +11,10 @@ from langchain.schema import Document
 
 import os
 import json
+import openai
+
+# ChromaDB 텔레메트리 비활성화
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 app = FastAPI(title="Youth Policy RAG Server", version="1.0.0")
 
@@ -24,7 +28,17 @@ app.add_middleware(
 )
 
 # 환경 변수에서 OpenAI API 키 로드
-os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+
+# LLM/RAG 사용 가능 여부 플래그
+rag_enabled = True
+try:
+    # 간단한 API Key 유효성 체크 (openai 라이브러리 사용 시 에러 발생 방지)
+    if not OPENAI_API_KEY or OPENAI_API_KEY == "YOUR_OPENAI_API_KEY":
+        rag_enabled = False
+except Exception:
+    rag_enabled = False
 
 def load_policy_data():
     """정책 데이터를 로드하고 Document 객체로 변환 (text 필드만 사용)"""
@@ -60,66 +74,75 @@ def load_policy_data():
 def initialize_vectorstore():
     """벡터스토어 초기화 및 데이터 로드"""
     try:
-        # 임베딩 모델 초기화
         embeddings = OpenAIEmbeddings()
-        
-        # 벡터스토어 경로 설정
         persist_directory = os.path.join(os.path.dirname(__file__), '../chroma_db')
         
         # 기존 벡터스토어가 있는지 확인
         if os.path.exists(persist_directory):
             print("Loading existing vectorstore...")
-            vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
-            
-            # 기존 데이터가 있는지 확인
-            collection = vectorstore._collection
-            if collection.count() > 0:
-                print(f"Found {collection.count()} existing documents in vectorstore")
-                return vectorstore
+            try:
+                vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+                collection = vectorstore._collection
+                if collection.count() > 0:
+                    print(f"Found {collection.count()} existing documents in vectorstore")
+                    return vectorstore
+            except Exception as e:
+                print(f"Error loading existing vectorstore: {e}")
+                print("Creating new vectorstore...")
         
         # 새로운 벡터스토어 생성
         print("Creating new vectorstore...")
-        
-        # 정책 데이터 로드
         documents = load_policy_data()
         
         if not documents:
             print("No documents loaded. Creating empty vectorstore.")
             vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
         else:
-            # 텍스트 분할
-            text_splitter = CharacterTextSplitter(
-                chunk_size=1000, 
-                chunk_overlap=200,
-                separator="\n"
-            )
+            text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200, separator="\n")
             split_docs = text_splitter.split_documents(documents)
             print(f"Split documents into {len(split_docs)} chunks")
             
-            # 벡터스토어 생성
-            vectorstore = Chroma.from_documents(
-                documents=split_docs,
-                embedding=embeddings,
-                persist_directory=persist_directory
-            )
-            
-            # 벡터스토어 저장
-            vectorstore.persist()
-            print(f"Vectorstore created with {len(split_docs)} document chunks")
+            try:
+                vectorstore = Chroma.from_documents(
+                    documents=split_docs,
+                    embedding=embeddings,
+                    persist_directory=persist_directory
+                )
+                vectorstore.persist()
+                print(f"Vectorstore created with {len(split_docs)} document chunks")
+            except Exception as e:
+                print(f"Error creating vectorstore with embeddings: {e}")
+                print("Creating empty vectorstore without embeddings...")
+                vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
         
         return vectorstore
         
     except Exception as e:
         print(f"Error initializing vectorstore: {e}")
-        raise
+        print("Creating empty vectorstore as fallback...")
+        try:
+            persist_directory = os.path.join(os.path.dirname(__file__), '../chroma_db')
+            vectorstore = Chroma(persist_directory=persist_directory, embedding_function=None)
+            return vectorstore
+        except Exception as fallback_error:
+            print(f"Fallback vectorstore creation failed: {fallback_error}")
+            return None
 
 # 벡터스토어 및 Retriever 초기화
 print("Initializing vectorstore...")
 vectorstore = initialize_vectorstore()
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+if vectorstore is None:
+    print("Warning: Vectorstore initialization failed. RAG functionality will be disabled.")
+    retriever = None
+    rag_enabled = False
+else:
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
 # LLM 초기화
-llm = ChatOpenAI(model_name="gpt-4o", temperature=0)
+llm = None
+if rag_enabled:
+    llm = ChatOpenAI(model_name="gpt-4o", temperature=0)
 
 # 세션별 대화 메모리 저장소 (개발용: 실제 서비스에서는 외부 DB 사용)
 session_memories = {}
@@ -214,20 +237,21 @@ async def health_check():
 
 @app.post("/chat")
 async def chat_with_bot(request: ChatRequest):
+    if not rag_enabled:
+        return {"response": "[오류] OpenAI API Key가 설정되어 있지 않거나 벡터스토어 초기화에 실패하여 AI 답변 기능이 비활성화되어 있습니다. 환경 변수 OPENAI_API_KEY를 설정해주세요."}
+    
+    if retriever is None:
+        return {"response": "[오류] 벡터스토어가 초기화되지 않아 RAG 기능을 사용할 수 없습니다."}
+    
     session_id = request.session_id
     user_message = request.user_message
 
-    # 1. 세션별 대화 메모리 가져오기 (WindowMemory 사용)
     if session_id not in session_memories:
-        session_memories[session_id] = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=5) # 최근 5개 대화 유지
+        session_memories[session_id] = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=5)
     memory = session_memories[session_id]
 
-    # 2. 사용자 정보 가져오기 (DB/저장소에서)
-    # 로그인 정보나 DB에 저장된 사용자 프로필이 있는 경우
     current_user_profile = user_profiles_db.get(session_id, {}).get("user_profile", "정보 없음")
 
-    # 3. 사용자 메시지에서 정보 추출 및 사용자 프로필 업데이트 (선택적)
-    # user_profiles_db에 사용자 정보가 없거나, 새로운 정보가 메시지에 포함된 경우
     if current_user_profile == "정보 없음":
         try:
             analysis_chain = initial_analysis_prompt | initial_analysis_llm
@@ -235,11 +259,10 @@ async def chat_with_bot(request: ChatRequest):
             initial_info = json.loads(analysis_response)
 
             extracted_profile = initial_info.get("user_profile")
-            if extracted_profile and extracted_profile != "정보 없음": # 유의미한 정보가 추출된 경우
-                # 사용자 프로필 DB 업데이트
+            if extracted_profile and extracted_profile != "정보 없음":
                 user_profiles_db[session_id] = user_profiles_db.get(session_id, {})
                 user_profiles_db[session_id]["user_profile"] = extracted_profile
-                current_user_profile = extracted_profile # 현재 답변에 반영
+                current_user_profile = extracted_profile
 
             search_query_from_analysis = initial_info.get("optimized_search_query", user_message)
         except json.JSONDecodeError:
@@ -249,7 +272,6 @@ async def chat_with_bot(request: ChatRequest):
             print(f"Error during initial analysis: {e}")
             search_query_from_analysis = user_message
     else:
-        # 이미 사용자 정보가 있는 경우, 검색 쿼리만 최적화하거나 원본 메시지 사용
         try:
             analysis_chain = initial_analysis_prompt | initial_analysis_llm
             analysis_response = analysis_chain.invoke({"user_input": user_message}).content
@@ -258,24 +280,22 @@ async def chat_with_bot(request: ChatRequest):
         except (json.JSONDecodeError, Exception):
             search_query_from_analysis = user_message
 
-    # 4. ConversationalRetrievalChain 설정
     qa_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         retriever=retriever,
         memory=memory,
-        # condense_question_prompt는 기본값을 사용하거나 별도 정의
         combine_docs_chain_kwargs={
             "prompt": QA_PROMPT,
-            # 'user_profile_data' 변수에 현재 사용자 프로필 주입
             "template_extra_variables": {"user_profile_data": current_user_profile}
         }
     )
 
-    # 5. 챗봇 답변 생성
-    response = qa_chain.invoke({"question": user_message}) # 여기서 question은 사용자의 원본 메시지
-
-    # 최종 답변 반환
-    return {"response": response["answer"]}
+    try:
+        response = qa_chain.invoke({"question": user_message})
+        return {"response": response["answer"]}
+    except Exception as e:
+        print(f"[OpenAI API Error] {e}")
+        return {"response": "[오류] 일시적으로 AI 답변이 불가합니다. 네트워크 또는 OpenAI 서버 연결 문제일 수 있습니다."}
 
 if __name__ == "__main__":
     import uvicorn
