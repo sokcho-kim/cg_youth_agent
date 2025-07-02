@@ -27,6 +27,11 @@ python run.py
 
 ### Frontend 실행 (로컬 개발)
 
+#### 필수 요구사항
+- **Node.js**: 18.19.0 (LTS 버전 권장)
+- **npm**: 9.x 이상
+
+#### 설치 및 실행
 ```bash
 cd frontend
 npm install
@@ -34,6 +39,29 @@ npm run dev
 ```
 
 - Next.js 앱: http://localhost:3000
+
+#### Node.js 버전 관리 (권장)
+```bash
+# nvm-windows 설치 후
+nvm install 18.19.0
+nvm use 18.19.0
+```
+
+## 🔧 문제 해결
+
+### Node.js 버전 문제
+- **문제**: Node.js 22.x에서 일부 패키지 호환성 문제 발생
+- **해결**: Node.js 18.19.0 (LTS) 사용 권장
+
+### 의존성 설치 문제
+- **문제**: SSL/TLS 오류 또는 권한 문제
+- **해결**: 
+  ```bash
+  npm cache clean --force
+  npm config set strict-ssl false
+  npm install --legacy-peer-deps
+  ```
+
 
 ## 🏗️ 아키텍처
 
@@ -44,10 +72,11 @@ npm run dev
 - **OpenAI GPT-4**: LLM 모델
 
 ### Frontend (Next.js)
-- **React 18**: UI 프레임워크
-- **Next.js 14**: 풀스택 프레임워크
+- **React 19**: UI 프레임워크
+- **Next.js 15.2.4**: 풀스택 프레임워크
 - **Tailwind CSS**: 스타일링
 - **shadcn/ui**: UI 컴포넌트
+- **Radix UI**: 접근성 컴포넌트
 
 ## 🗂️ 데이터 구조
 
@@ -114,6 +143,18 @@ NEXT_PUBLIC_API_URL=https://your-backend.onrender.com  # 프로덕션
 2. `frontend/components/`에서 컴포넌트 수정
 3. `frontend/app/globals.css`에서 스타일 수정
 
+### 패키지 관리
+```bash
+# 새 패키지 추가
+npm install package-name
+
+# 개발 의존성 추가
+npm install --save-dev package-name
+
+# 패키지 제거
+npm uninstall package-name
+```
+
 ## 📝 API 문서
 
 ### POST /chat
@@ -137,10 +178,6 @@ NEXT_PUBLIC_API_URL=https://your-backend.onrender.com  # 프로덕션
 - ✅ RAG 기반 정확한 답변
 - ✅ 세션별 대화 메모리
 - ✅ 실시간 채팅 인터페이스
+- ✅ 반응형 디자인
+- ✅ 접근성 지원
 
-## 📞 문의
-- 서울시 청년포털: youth.seoul.go.kr
-- 전화: 02-2133-5000
-
-## 📄 라이선스
-본 프로젝트는 참고용으로 제작되었습니다. 실제 정책 정보는 서울시 청년포털에서 확인하세요. 
