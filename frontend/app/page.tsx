@@ -24,7 +24,7 @@ export default function SeoulYouthChatbot() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             {/* 청년정보통 로고 */}
             <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg flex items-center justify-center">
@@ -35,6 +35,8 @@ export default function SeoulYouthChatbot() {
               <p className="text-sm text-gray-600">서울시 청년 정책과 지원사업을 쉽게 찾아보세요</p>
             </div>
           </div>
+          {/* 우측 상단 로고 */}
+          <img src="/youth-logo.png" alt="청년정보통 로고" className="h-10 w-auto" />
         </div>
       </header>
 
