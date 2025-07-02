@@ -18,7 +18,7 @@ load_dotenv()
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 # 모듈 import
 from .dataLoader import get_vectorstore_and_retriever
-from llm_manager import (
+from .llm_manager import (
     get_or_create_memory, 
     extract_user_profile, 
     create_qa_chain, 

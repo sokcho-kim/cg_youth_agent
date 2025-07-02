@@ -4,9 +4,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.schema import Document
-from llm_manager import (
-    rag_enabled, 
-    llm, 
+from .llm_manager import (
     get_or_create_memory, 
     extract_user_profile, 
     create_qa_chain, 
