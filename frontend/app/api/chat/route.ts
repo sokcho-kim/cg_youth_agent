@@ -5,9 +5,9 @@ export async function POST(req: Request) {
   let user_message = "";
 
   if (body.messages && Array.isArray(body.messages)) {
-    const lastMessage = body.messages[body.messages.length - 1];
-    user_message = lastMessage?.content ?? "";
-    console.log("lastMessage:", lastMessage);
+    // 모든 메시지 content를 줄바꿈으로 합침
+    user_message = (body.messages as Array<{ content: string }>).map((m) => m.content).join("\n");
+    console.log("messages merged user_message:", user_message);
   } else if (typeof body.question === "string") {
     user_message = body.question;
   } else {
