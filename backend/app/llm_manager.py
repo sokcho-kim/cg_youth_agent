@@ -5,14 +5,18 @@ from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain_chroma import Chroma
+from app.ask_api import run_llm
 
 # LLM 호출을 /ask API로만 수행
 ASK_API_URL = os.environ.get("ASK_API_URL", "https://youth-chatbot-backend.onrender.com/ask")
 
+# def call_llm_via_ask(prompt: str) -> str:
+#     response = requests.post(ASK_API_URL, json={"prompt": prompt})
+#     response.raise_for_status()
+#     return response.json()["response"]
+
 def call_llm_via_ask(prompt: str) -> str:
-    response = requests.post(ASK_API_URL, json={"prompt": prompt})
-    response.raise_for_status()
-    return response.json()["response"]
+    return run_llm(prompt)
 
 # 세션별 대화 메모리 저장소 (개발용: 실제 서비스에서는 외부 DB 사용)
 session_memories = {}

@@ -8,6 +8,14 @@ router = APIRouter()
 class AskRequest(BaseModel):
     prompt: str
 
+def run_llm(prompt: str) -> str:
+    client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+
 @router.post("/ask")
 async def ask_gpt(request: AskRequest):
     client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
