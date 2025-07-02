@@ -3,8 +3,8 @@ export const maxDuration = 30
 export async function POST(req: Request) {
   const { question } = await req.json();
   
-  // 환경변수에서 백엔드 URL 가져오기 (배포 시 설정)
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  // 배포된 백엔드 URL로 고정
+  const backendUrl = "https://youth-chatbot-backend.onrender.com";
   
   // 백엔드 API 형식에 맞게 요청 데이터 구성
   const requestData = {
