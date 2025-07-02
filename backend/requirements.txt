@@ -10,7 +10,11 @@ openai
 
 # Vector database
 chromadb
+qdrant-client
 
 # Data processing
 pydantic
 python-multipart
+
+# Environment variables
+python-dotenv

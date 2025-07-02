@@ -12,11 +12,17 @@ from langchain.schema import Document
 import os
 import json
 import openai
+from dotenv import load_dotenv
+from .ask_api import router as ask_router
+
+# .env 파일 로드 (개발환경용)
+load_dotenv()
 
 # ChromaDB 텔레메트리 비활성화
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 app = FastAPI(title="Youth Policy RAG Server", version="1.0.0")
+app.include_router(ask_router)
 
 # CORS 허용 (프론트엔드와 연동 위해)
 app.add_middleware(

@@ -127,8 +127,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 
 ### Frontend
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000  # 개발환경
-NEXT_PUBLIC_API_URL=https://your-backend.onrender.com  # 프로덕션
+NEXT_PUBLIC_API_URL=https://youth-chatbot-backend.onrender.com  # 프로덕션
 ```
 
 ## 🛠️ 개발 가이드
