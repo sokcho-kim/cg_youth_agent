@@ -1,27 +1,34 @@
 export const maxDuration = 30
 
 export async function POST(req: Request) {
-  const { question } = await req.json();
-  
-  // 타입 및 값 확인
-  console.log("question type:", typeof question, "value:", question);
+  const body = await req.json();
+  let user_message = "";
 
-  // fallback: string이 아니면 빈 문자열로 대체
-  let safeQuestion = question;
-  if (typeof question !== "string") {
-    console.error("[Error] question must be a string. Fallback to empty string.");
-    safeQuestion = "";
+  if (body.messages && Array.isArray(body.messages)) {
+    const lastMessage = body.messages[body.messages.length - 1];
+    user_message = lastMessage?.content ?? "";
+    console.log("lastMessage:", lastMessage);
+  } else if (typeof body.question === "string") {
+    user_message = body.question;
+  } else {
+    console.error("[Error] No valid user message found in request body.");
   }
 
-  // 배포된 백엔드 URL로 고정
+  // 타입 및 값 확인
+  console.log("user_message type:", typeof user_message, "value:", user_message);
+
+  // fallback: string이 아니면 빈 문자열로 대체
+  if (typeof user_message !== "string") {
+    console.error("[Error] user_message must be a string. Fallback to empty string.");
+    user_message = "";
+  }
+
   const backendUrl = "https://youth-chatbot-backend.onrender.com";
-  
-  // 백엔드 API 형식에 맞게 요청 데이터 구성
   const requestData = {
-    session_id: "default_session", // 세션 관리 (나중에 개선 가능)
-    user_message: safeQuestion
+    session_id: "default_session",
+    user_message
   };
-  
+
   console.log("requestData:", requestData);
 
   const response = await fetch(`${backendUrl}/chat`, {
