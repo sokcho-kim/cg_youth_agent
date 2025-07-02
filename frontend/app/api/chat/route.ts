@@ -61,8 +61,8 @@ export async function POST(req: Request) {
   const data = await response.json();
   return new Response(
     JSON.stringify({
-      id: Date.now().toString(),
-      role: "assistant",
+      id: data.id || Date.now().toString(),
+      role: data.role || "assistant",
       content: data.response
     }),
     { headers: { "Content-Type": "application/json" } }
