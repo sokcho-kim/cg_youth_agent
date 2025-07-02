@@ -128,13 +128,24 @@ def extract_user_profile(user_message, session_id):
 
 def create_qa_chain(retriever, memory, user_profile, question):
     # QA 프롬프트를 /ask API로 호출하여 답변 생성
+    # 메모리에서 대화 이력 불러오기
+    chat_history = memory.load_memory_variables({})["chat_history"]
+    
+    # 리트리버로 문서 검색
+    docs = retriever.get_relevant_documents(question)
+    context = "\n\n".join([doc.page_content for doc in docs])
+
+    # QA 프롬프트 구성
     prompt = QA_PROMPT.format(
         user_profile_data=user_profile,
-        chat_history="",  # 필요시 메모리에서 가져와서 추가
-        context="",        # 필요시 retriever에서 가져와서 추가
+        chat_history=chat_history,
+        context=context,
         question=question
     )
     answer = call_llm_via_ask(prompt)
+
+    # 메모리에 현재 질문/응답 저장
+    memory.save_context({"input": question}, {"output": answer})
     return answer
 
 def get_active_sessions_count():
