@@ -12,6 +12,10 @@ from langchain.schema import Document
 import os
 import json
 import openai
+from dotenv import load_dotenv
+
+# .env 파일 로드 (개발환경용)
+load_dotenv()
 
 # ChromaDB 텔레메트리 비활성화
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
