@@ -59,16 +59,20 @@ export async function POST(req: Request) {
     body: JSON.stringify(requestData),
   });
   const data = await response.json();
-  return new Response(
-    JSON.stringify({
-      messages: [
-        {
-          id: data.id || Date.now().toString(),
-          role: data.role || "assistant",
-          content: data.response
-        }
-      ]
-    }),
-    { headers: { "Content-Type": "application/json" } }
-  );
+
+  // return new Response(
+  //   JSON.stringify({
+  //     messages: [
+  //       {
+  //         id: data.id || Date.now().toString(),
+  //         role: data.role || "assistant",
+  //         content: data.response
+  //       }
+  //     ]
+  //   }),
+  //   { headers: { "Content-Type": "application/json" } }
+  // );
+  
+  // useChat 훅은 assistant 메시지를 자동으로 추가하므로 텍스트만 반환
+  return new Response(data.response);
 }
