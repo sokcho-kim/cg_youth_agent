@@ -47,11 +47,17 @@ export const maxDuration = 30
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const lastMessage = messages[messages.length - 1];
+  
+  console.log("Frontend request - messages:", messages);
+  console.log("Frontend request - lastMessage:", lastMessage);
+  
   const backendUrl = "https://youth-chatbot-backend.onrender.com";
   const requestData = {
     session_id: "default_session",
     user_message: lastMessage.content
   };
+ 
+  console.log("Backend request data:", requestData);
  
   const response = await fetch(`${backendUrl}/chat`, {
     method: "POST",
@@ -59,20 +65,23 @@ export async function POST(req: Request) {
     body: JSON.stringify(requestData),
   });
   const data = await response.json();
-
-  // return new Response(
-  //   JSON.stringify({
-  //     messages: [
-  //       {
-  //         id: data.id || Date.now().toString(),
-  //         role: data.role || "assistant",
-  //         content: data.response
-  //       }
-  //     ]
-  //   }),
-  //   { headers: { "Content-Type": "application/json" } }
-  // );
   
-  // useChat 훅은 assistant 메시지를 자동으로 추가하므로 텍스트만 반환
-  return new Response(data.response);
+  console.log("Backend response data:", data);
+  console.log("Sending response to frontend:", data.response);
+  
+  // useChat 훅이 기대하는 messages 배열 형태로 응답
+  return new Response(
+    JSON.stringify({
+      messages: [
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: data.response
+        }
+      ]
+    }),
+    {
+      headers: { "Content-Type": "application/json" }
+    }
+  );
 }

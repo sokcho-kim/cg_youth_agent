@@ -8,11 +8,22 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { MessageCircle, User } from "lucide-react"
+import { useEffect } from "react"
 
 export default function SeoulYouthChatbot() {
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/chat",
   })
+
+  // 디버깅: messages 상태 확인
+  useEffect(() => {
+    console.log("Current messages:", messages);
+  }, [messages]);
+
+  // 디버깅: isLoading 상태 확인
+  useEffect(() => {
+    console.log("Loading state:", isLoading);
+  }, [isLoading]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
