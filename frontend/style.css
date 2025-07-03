@@ -187,6 +187,22 @@ main {
 .bubble.bot br {
     margin-bottom: 4px;
 }
+
+/* 봇 메시지 내 링크 스타일링 */
+.bubble.bot a {
+    color: #007bff;
+    text-decoration: underline;
+    transition: color 0.2s ease;
+}
+
+.bubble.bot a:hover {
+    color: #0056b3;
+    text-decoration: none;
+}
+
+.bubble.bot a:visited {
+    color: #6f42c1;
+}
 .avatar.user {
     width: 32px;
     height: 32px;

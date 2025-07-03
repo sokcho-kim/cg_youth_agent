@@ -83,6 +83,13 @@ function convertMarkdownToHtml(markdown) {
     // 제목 처리 (# 제목)
     html = html.replace(/^#\s+(.*?)(?=\n|$)/gm, '<h1 style="margin: 24px 0 16px 0; color: #333; font-size: 22px;">$1</h1>');
     
+    // "[자세히 보기]" 패턴을 링크로 변환 (URL이 뒤에 있는 경우) - URL은 숨기고 텍스트만 클릭 가능하게
+    html = html.replace(/\[자세히 보기\]\s*(https?:\/\/[^\s<>]+)/g, '<a href="$1" target="_blank" style="color: #007bff; text-decoration: underline;">자세히 보기</a>');
+    
+    // 일반 URL을 클릭 가능한 링크로 변환 (이미 HTML 링크가 아닌 경우)
+    html = html.replace(/(?<!<a[^>]*>)(https?:\/\/[^\s<>]+)(?![^<]*<\/a>)/g, '<a href="$1" target="_blank" style="color: #007bff; text-decoration: underline;">$1</a>');
+    html = html.replace(/\[자세히 보기\]\s*(https?:\/\/[^\s<>]+)/g, '<a href="$1" target="_blank" style="color: #007bff; text-decoration: underline;">자세히 보기</a>');
+    
     return html;
 }
 
