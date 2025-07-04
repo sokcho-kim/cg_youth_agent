@@ -114,7 +114,7 @@ def get_vectorstore_and_retriever():
         retriever = vectorstore.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": 0.85,  # 임계값: 0.8~0.9 정도 추천
+                "score_threshold": 0.75,  # 임계값
                 "k": 10                   # 최대 문서 수
             }
         )

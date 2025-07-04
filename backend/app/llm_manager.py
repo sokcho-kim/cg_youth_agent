@@ -66,28 +66,39 @@ User's Question: {question}
 
 ---
 Instructions for Answer Generation:
-1. **Domain Restriction**: Only respond to questions directly related to youth housing policies. If the question is irrelevant (e.g., tax, middle-aged housing, market trends), respond with a friendly message like:  
-   "**죄송합니다. 저는 서울시 청년 주거 정책 전용 AI입니다. 관련된 질문만 답변드릴 수 있어요 🙇**"
-2. **Directness**: Address the user's question directly and clearly.
-3. **Accuracy**: Use information strictly from the "Retrieved Policy Documents." Do NOT fabricate or infer missing information.
-4. **Completeness**: Include all relevant policy details available in the documents.
-5. **User-centric**: Adapt the tone and content to the user's profile (e.g., "서울 거주 20대 미혼 여성"). If profile is missing or empty, use general language.
-6. **Content Selection**: Only include the 2~3 most relevant policies in the main answer. List remaining relevant policies as a **reference list** with brief summaries.
-7. **Structure**: Organize content using bullet points or numbered lists for clarity.
-8. **Policy Details**: For each main policy in the answer, include:
+1. **Directness**: Address the user's question directly and clearly.
+2. **Accuracy**: Use information strictly from the "Retrieved Policy Documents." Do NOT fabricate or infer missing information.
+3. **Completeness**: Include all relevant policy details available in the documents.
+4. **User-centric**: Adapt the tone and content to the user's profile (e.g., "서울 거주 20대 미혼 여성"). If profile is missing or empty, use general language.
+5. **Content Selection**: Only include the 2~3 most relevant policies in the main answer. List remaining relevant policies as a **reference list** with brief summaries if it exists.
+6. **Structure**: Organize content using bullet points or numbered lists for clarity.
+7. **Policy Details**: For each main policy in the answer, include:
    - 정책명 (Policy Name)
    - 설명 (Description)
    - 지원대상 (Target Beneficiaries)
    - 신청방법 (Application Method)
    - 문의 (Contact Information)
    - 관련링크 (Related Links) if available
-9. **URL Inclusion Format**: If a URL is provided in the policy document, include it using the following format:  
+8. **URL Inclusion Format**: If a URL is provided in the policy document, include it using the following format:  
    `<a href="URL" target="_blank">자세히 보기</a>`  
    Do not fabricate or guess URLs. Only use explicitly provided ones.
-10. **Clarity**: Use easy-to-understand and concise Korean. Avoid unnecessary technical jargon.
-11. **Language Requirement**: Final response must be written **in Korean only**. Do not use English or any other language.
+9. **Clarity**: Use easy-to-understand and concise Korean. Avoid unnecessary technical jargon.
+10. **Language Requirement**: Final response must be written **in Korean only**. Do not use English or any other language.
+11. **Domain Restriction**: Only respond to questions directly related to youth housing policies. If the question is irrelevant (e.g., tax, middle-aged housing, market trends), respond with a friendly message like:  
+   "**죄송합니다. 저는 서울시 청년 주거 정책 전용 AI입니다. 관련된 질문만 답변드릴 수 있어요 🙇**"
+12. **Icons**: Please include appropriate icons (e.g., ✅, 📌, ⚠️) to enhance clarity and readability.
+13. **Personalization**: Make sure your response is accurate and helpful, accurate, and also personalize the explanation based on the user's context. Include the policy URL if it exists in the retrieved documents.
+14. **Fallback Handling**:  
+If there is no directly matching policy, but the user's question is still related to youth housing issues, do not return an empty or unhelpful answer.  
+Instead, follow this structure:
+- Express empathy (e.g., "안타깝지만...")
+- Suggest the most similar or potentially helpful policy.
+- Example:
 
-Provide a helpful, accurate, and strictly domain-specific response. Include the policy URL if it exists in the retrieved documents.
+"안타깝지만, 전세보증금 반환 피해자에 대한 직접적인 지원 정책은 현재 없습니다.  
+하지만 다음과 같은 정책이 유사하게 도움이 될 수 있습니다:  
+- 정책명: 청년 법률 상담 지원  
+- 설명: 부동산 계약 등 분쟁 시 무료 법률 상담 제공
 """
 
 QA_PROMPT = PromptTemplate.from_template(qa_prompt_template)
@@ -143,7 +154,48 @@ def create_qa_chain(retriever, memory, user_profile, question):
     # 리트리버로 문서 검색
     docs = retriever.get_relevant_documents(question) 
     if not docs:
-        return "죄송합니다. 해당 질문에 관련된 정책 문서를 찾을 수 없습니다.", []
+        # return "죄송합니다. 해당 질문에 관련된 정책 문서를 찾을 수 없습니다.", []
+        # fallback 프롬프트 구성
+        fallback_prompt_template = """
+            너는 '서울시 청년 주거 정책 전문 AI'야. 사용자의 질문에 대해 정확하게 대응되는 정책 문서를 찾지 못했지만, 사용자의 상황이 청년 주거와 관련 있다고 판단된다면 아래 지침에 따라 유사 정책을 제안해줘.
+
+            ---
+            # USER PROFILE #
+            {user_profile_data}
+
+            # USER'S QUESTION #
+            {question}
+
+            # CHAT HISTORY #
+            {chat_history}
+
+            # 지침:
+            1. 사용자의 질문이 전세금, 자취, 월세, 이사, 독립, 피해 등과 관련이 있으면, 주거 문제로 간주하고 반드시 응답을 생성해야 해.
+            2. 정확히 일치하는 정책이 없더라도, 가장 유사하거나 도움될 수 있는 청년 주거 정책을 제안해줘.
+            3. 다음 형식으로 응답해:
+
+            안타깝지만, "{question}"에 대해 직접 지원되는 정책은 현재 없습니다.  
+            하지만 다음과 같은 유사한 지원책이 도움될 수 있어요:
+
+            - 정책명: ...
+            - 설명: ...
+            - 신청방법: ...
+            - 문의: ...
+            - 관련링크: <a href="URL" target="_blank">자세히 보기</a>
+
+            4. 사용자의 상황에 공감하는 말투를 사용하되, 전문적이고 신뢰감 있게 말해줘.
+            5. 반드시 한국어로만 응답하고, 영어는 포함하지 마.
+            6. 하나의 정책만 추천해도 되지만, 최대 2~3개까지 포함할 수 있어.
+
+            출력은 응답 본문만 자연스럽게 생성해줘. 메타 정보나 JSON 없이 대화체로 작성해.
+        """
+        fallback_prompt = fallback_prompt_template.format(
+            user_profile_data=user_profile,
+            chat_history=chat_history,
+            question=question
+        )
+        fallback_answer = call_llm_via_ask(fallback_prompt)
+        return fallback_answer, []
     
     # 벡터DB 검색 결과 중 상위 3개 문서 선택히여 필터링 
     top3_docs, remaining_docs = filter_documents_by_score(docs, top_n=3)
@@ -170,17 +222,29 @@ def is_housing_policy_question(question: str) -> bool:
     # 청년 주거 정책 질문 판단 (yes/no) 
     # 벡터DB 언어와 맞춰서 한국어로 작성 ("청년 주거 정책", "전세자금 대출", "신혼부부" 등 키워드 접근성)
     routing_prompt = """
-    // Task
-    입력된 question이 "청년 주거 정책"과 관련된 질문인지 판단해주세요.
-    answer는 반드시 "yes" 또는 "no"로만 해주세요.
+    아래 질문이 청년 주거 정책과 관련된 질문인지 판단해주세요. 반드시 yes 또는 no로만 대답해주세요.
 
-    // Context
-    청년 주거 정책은 청년층(만 19~39세)을 대상으로 하는 주거 지원 정책을 의미합니다.
-    예: 청년 전세자금 대출, 청년 임대주택, 신혼부부 주택 등
+    [청년 주거 정책 정의]
+    청년 주거 정책은 일반적으로 만 19세~39세 이하 청년을 대상으로 한 다음과 같은 주거 관련 지원을 포함합니다:
+    - 전세자금, 월세 지원
+    - 임대주택 공급
+    - 자립 지원 주거
+    - 신혼부부, 사회초년생 대상 주택 지원
+    - 주거급여, 이사비, 보증금 등 주거비용 부담 완화
+
+    [예시]
+    Q: 전세보증금을 못 돌려받았어요 → yes  
+    Q: 자취하고 싶은데 돈이 없어요 → yes  
+    Q: 20대 청년 주거 지원정책이 있나요? → yes  
+    Q: 신혼부부를 위한 주택 정책은 어떤 게 있어요? → yes  
+    Q: 부동산 시장 전망은? → no  
+    Q: 종합부동산세 줄일 수 있나요? → no  
+    Q: 중장년 주거복지에 대해 알려줘 → no  
 
     ---
-    question: {question}
-    answer:""".strip()
+    Q: {question}
+    A:
+    """.strip()
 
     response = call_llm_via_ask(routing_prompt.format(question=question))
     return response.strip().lower().startswith("yes")
