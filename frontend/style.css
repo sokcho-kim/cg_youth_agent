@@ -70,7 +70,7 @@ main {
     color: #fff;
     padding: 18px 20px 14px 20px;
 }
-.chat-avatar.bot {
+.chat-avatar {
     width: 36px;
     height: 36px;
     background: #fff;
@@ -94,7 +94,7 @@ main {
 }
 .chat-container {
     flex: 1;
-    padding: 24px 16px 12px 16px;
+    padding: 24px 16px 20px 16px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -355,12 +355,13 @@ main {
     padding: 12px 16px;
     font-size: 1rem;
     margin-left: 38px;
-    margin-bottom: 2px;
+    margin-bottom: 8px;
     display: inline-block;
-    max-width: 120px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    min-width: 80px;
+    max-width: 200px;
+    word-break: break-word;
+    white-space: normal;
+    overflow: visible;
 }
 /* 큰 화면 (1200px 이상) */
 @media (min-width: 1200px) {

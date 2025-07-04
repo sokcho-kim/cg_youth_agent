@@ -50,7 +50,14 @@ function addMessage(text, sender = 'user') {
     }
     
     chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // 스크롤을 부드럽게 맨 아래로 이동
+    setTimeout(() => {
+        chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }, 100);
 }
 
 // 마크다운을 HTML로 변환하는 함수
@@ -95,7 +102,14 @@ function addLoading() {
     loadingDiv.textContent = '입력 중...';
     loadingDiv.id = 'loading-msg';
     chatContainer.appendChild(loadingDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // 스크롤을 부드럽게 맨 아래로 이동
+    setTimeout(() => {
+        chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }, 100);
 }
 
 function removeLoading() {
