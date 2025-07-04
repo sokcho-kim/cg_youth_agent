@@ -24,7 +24,8 @@ from .llm_manager import (
     create_qa_chain, 
     get_active_sessions_count,
     is_housing_policy_question,
-    filter_documents_by_score  
+    filter_documents_by_score,
+    create_fallback_answer
 )
 
 app = FastAPI(title="Youth Policy RAG Server", version="1.0.0")
@@ -94,17 +95,16 @@ async def chat_with_bot(request: ChatRequest):
     # 사용자 프로필 추출
     current_user_profile, search_query_from_analysis = extract_user_profile(user_message, session_id)
 
-    # Step 3: QA 체인 생성 및 답변 생성 (llm 인자 제거) + 문서 목록 분리
+    # Step 3: QA 체인 생성 및 답변 생성 (llm 인자 제거)
     try:
         answer, remaining_docs = create_qa_chain(retriever, memory, current_user_profile, user_message)
-        remaining_list = [
-            doc.metadata.get("category") or doc.metadata.get("id") or doc.page_content[:30] for doc in remaining_docs
-        ]
-        return {"response": answer, "remaining_docs": remaining_list}
+        return {"response": answer,
+                "remaining_docs": remaining_docs
+        }
     except Exception as e:
         print(f"[OpenAI API Error] {e}")
         return {"response": "[오류] 일시적으로 AI 답변이 불가합니다. 네트워크 또는 OpenAI 서버 연결 문제일 수 있습니다."}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=8000) 
