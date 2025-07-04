@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>청년정보통 챗봇</title>
+    <title>청년몽땅정보통 주거 정책 전문 AI</title>
     <link rel="stylesheet" href="style.css">
 </head> 
 <body>
     <header class="header">
         <div class="header-left">
             <div class="header-title">
-                <h1>청년정보통 챗봇</h1>
-                <p>서울시 청년 정책을 AI에게 물어보세요</p>
+                <h1>청년 몽땅 정보통 AI</h1>
+                <p>서울시 청년을 위한 주거 정책을 AI 상담사에게 물어보세요</p>
             </div>
         </div>
         <div class="header-right">
@@ -19,37 +19,43 @@
         </div>
     </header>
     <main>
-        <div class="chat-card">
-            <div class="chat-card-header">
-                <div class="chat-avatar bot">
-                    <span>AI</span>
-                </div>
-                <div>
-                    <div class="chat-bot-title">청년 정책 상담사</div>
-                    <div class="chat-bot-status">온라인</div>
-                </div>
-            </div>
-            <div id="chat-container" class="chat-container">
-                <div id="chat-welcome" class="chat-welcome">
-                    <h3>안녕하세요! 👋</h3>
-                    <p>서울시 청년 정책, 지원사업, 일자리 정보 등을 AI 상담사에게 물어보세요.</p>
-                    <div class="chat-tags">
-                        <button class="chat-tag">청년수당</button>
-                        <button class="chat-tag">청년일자리</button>
-                        <button class="chat-tag">주거지원</button>
-                        <button class="chat-tag">창업지원</button>
+        <div class="main-content">
+            <div class="chat-card">
+                <div class="chat-card-header">
+                    <div class="chat-avatar bot">
+                        <span>AI</span>
+                    </div>
+                    <div>
+                        <div class="chat-bot-title">청년 주거 정책 상담사</div>
+                        <div class="chat-bot-status">온라인</div>
                     </div>
                 </div>
-            </div>
-            <form id="chat-form" class="chat-form">
-                <div class="input-row">
-                    <input type="text" id="user-input" placeholder="질문을 입력하세요..." autocomplete="off" required />
-                    <button type="submit" id="send-btn">전송</button>
+                <div id="chat-container" class="chat-container">
+                    <div id="chat-welcome" class="chat-welcome">
+                        <h3>안녕하세요! 👋</h3>
+                        <p>서울시 청년 주거 정책 전문 AI입니다.</p>
+                        <p>주거 관련 정책에 대해 궁금한 사항이 있다면 언제든지 물어보세요😊</p>
+                    </div>
                 </div>
-            </form>
+                <form id="chat-form" class="chat-form">
+                    <div class="input-row">
+                        <input type="text" id="user-input" placeholder="질문을 입력하세요..." autocomplete="off" required />
+                        <button type="submit" id="send-btn">전송</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 오른쪽 정책 목록 (조건부 표시) -->
+            <div id="policy-sidebar" class="policy-sidebar">
+                <div class="policy-sidebar-header">
+                    <h3>관련 정책 목록</h3>
+                </div>
+                <div id="policy-list" class="policy-list">
+                </div>
+            </div>
         </div>
     </main>
     <script src="chatbot.js"></script>
-    <script src="redirectVerifier.js"></script> <!-- re-direct 방지 스크립트 -->
+    <script src="redirectVerifier.js"></script>
 </body>
 </html> 
