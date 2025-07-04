@@ -111,12 +111,11 @@ def get_vectorstore_and_retriever():
         print("Warning: Vectorstore initialization failed. RAG functionality will be disabled.")
         return None, None, False
     else:
-        # retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
         retriever = vectorstore.as_retriever(
-            search_type="mmr",  # 중복 줄이고 핵심 위주 검색
+            search_type="similarity_score_threshold",
             search_kwargs={
-                "k": 2,          # 최종 반환할 문서 수
-                "fetch_k": 5     # 유사한 문서 중에서 5개까지 보고 그 중 k=2만 추림
+                "score_threshold": 0.85,  # 임계값: 0.8~0.9 정도 추천
+                "k": 10                   # 최대 문서 수
             }
         )
         return vectorstore, retriever, True

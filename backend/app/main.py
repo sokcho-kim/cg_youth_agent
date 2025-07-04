@@ -22,7 +22,9 @@ from .llm_manager import (
     get_or_create_memory, 
     extract_user_profile, 
     create_qa_chain, 
-    get_active_sessions_count
+    get_active_sessions_count,
+    is_housing_policy_question,
+    filter_documents_by_score  
 )
 
 app = FastAPI(title="Youth Policy RAG Server", version="1.0.0")
@@ -79,16 +81,26 @@ async def chat_with_bot(request: ChatRequest):
     session_id = request.session_id
     user_message = request.user_message
 
+    # Step 1: 주거 정책 관련 질문 여부 판단
+    if not is_housing_policy_question(user_message):
+        return {
+            "response": "저는 서울시 청년 주거 정책 전문 AI입니다. 관련된 질문만 답변드릴 수 있어요 🙇‍♀️"
+        }
+
+    # Step 2: 사용자 프로필 및 메모리 처리
     # 세션별 메모리 가져오기
     memory = get_or_create_memory(session_id)
 
     # 사용자 프로필 추출
     current_user_profile, search_query_from_analysis = extract_user_profile(user_message, session_id)
 
-    # QA 체인 생성 및 답변 생성 (llm 인자 제거)
+    # Step 3: QA 체인 생성 및 답변 생성 (llm 인자 제거) + 문서 목록 분리
     try:
-        answer = create_qa_chain(retriever, memory, current_user_profile, user_message)
-        return {"response": answer}
+        answer, remaining_docs = create_qa_chain(retriever, memory, current_user_profile, user_message)
+        remaining_list = [
+            doc.metadata.get("category") or doc.metadata.get("id") or doc.page_content[:30] for doc in remaining_docs
+        ]
+        return {"response": answer, "remaining_docs": remaining_list}
     except Exception as e:
         print(f"[OpenAI API Error] {e}")
         return {"response": "[오류] 일시적으로 AI 답변이 불가합니다. 네트워크 또는 OpenAI 서버 연결 문제일 수 있습니다."}

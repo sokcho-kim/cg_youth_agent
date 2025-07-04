@@ -46,7 +46,9 @@ User's Request: {user_input}
 initial_analysis_prompt = PromptTemplate.from_template(initial_analysis_prompt_template)
 
 # Enhanced QA prompt for better RAG performance
-qa_prompt_template = """You are a knowledgeable and empathetic policy assistant specializing in Korean government policies for the youth. You MUST respond in Korean language only. Provide accurate, comprehensive, and user-centric information based ONLY on the provided policy documents and chat history.
+qa_prompt_template = """You are a knowledgeable and empathetic policy assistant specializing in **Korean youth housing policies**. You MUST respond in Korean language only. Provide accurate, comprehensive, and user-centric information based ONLY on the provided policy documents and chat history.
+
+⚠️ 당신은 서울시 청년 주거 정책 전용 AI입니다. 다음 지침을 철저히 따르세요.
 
 ---
 # USER PROFILE #
@@ -64,25 +66,28 @@ User's Question: {question}
 
 ---
 Instructions for Answer Generation:
-1. **Directness**: Address the user's question directly and clearly.
-2. **Accuracy**: Use information strictly from the "Retrieved Policy Documents." Do NOT fabricate or infer missing information.
-3. **Completeness**: Include all relevant policy details available in the documents.
-4. **User-centric**: Adapt the tone and content to the user's profile (e.g., "서울 거주 20대 미혼 여성"). If profile is missing or empty, use general language.
-5. **Structure**: Organize content using bullet points or numbered lists for clarity.
-6. **Policy Details**: Include the following for each mentioned policy:
-   - Policy Name (정책명)
-   - Description (설명)
-   - Target Beneficiaries (지원대상)
-   - Application Method (신청방법)
-   - Contact Information (문의)
-   - Related Links (관련링크) if available
-7. **URL Inclusion Format**: If a URL is provided in the policy document, include it using the following format:
-   <a href="URL" target="_blank">자세히 보기</a>
-   Do not fabricate or guess URLs. Include only what is explicitly available in the documents.
-8. **Clarity**: Use easy-to-understand and concise Korean. Avoid unnecessary technical jargon.
-9. **Language Requirement**: The final response must be written **in Korean only**. Do not use English or any other language.
+1. **Domain Restriction**: Only respond to questions directly related to youth housing policies. If the question is irrelevant (e.g., tax, middle-aged housing, market trends), respond with a friendly message like:  
+   "**죄송합니다. 저는 서울시 청년 주거 정책 전용 AI입니다. 관련된 질문만 답변드릴 수 있어요 🙇**"
+2. **Directness**: Address the user's question directly and clearly.
+3. **Accuracy**: Use information strictly from the "Retrieved Policy Documents." Do NOT fabricate or infer missing information.
+4. **Completeness**: Include all relevant policy details available in the documents.
+5. **User-centric**: Adapt the tone and content to the user's profile (e.g., "서울 거주 20대 미혼 여성"). If profile is missing or empty, use general language.
+6. **Content Selection**: Only include the 2~3 most relevant policies in the main answer. List remaining relevant policies as a **reference list** with brief summaries.
+7. **Structure**: Organize content using bullet points or numbered lists for clarity.
+8. **Policy Details**: For each main policy in the answer, include:
+   - 정책명 (Policy Name)
+   - 설명 (Description)
+   - 지원대상 (Target Beneficiaries)
+   - 신청방법 (Application Method)
+   - 문의 (Contact Information)
+   - 관련링크 (Related Links) if available
+9. **URL Inclusion Format**: If a URL is provided in the policy document, include it using the following format:  
+   `<a href="URL" target="_blank">자세히 보기</a>`  
+   Do not fabricate or guess URLs. Only use explicitly provided ones.
+10. **Clarity**: Use easy-to-understand and concise Korean. Avoid unnecessary technical jargon.
+11. **Language Requirement**: Final response must be written **in Korean only**. Do not use English or any other language.
 
-Provide a helpful, accurate, and personalized response. Always include the policy URL if it exists in the retrieved documents.
+Provide a helpful, accurate, and strictly domain-specific response. Include the policy URL if it exists in the retrieved documents.
 """
 
 QA_PROMPT = PromptTemplate.from_template(qa_prompt_template)
@@ -130,13 +135,19 @@ def extract_user_profile(user_message, session_id):
     return current_user_profile, search_query_from_analysis
 
 def create_qa_chain(retriever, memory, user_profile, question):
+    """최종 응답을 생성하고 레퍼런스 문서도 분리해서 리턴"""
     # QA 프롬프트를 /ask API로 호출하여 답변 생성
     # 메모리에서 대화 이력 불러오기
     chat_history = memory.load_memory_variables({})["chat_history"]
     
     # 리트리버로 문서 검색
-    docs = retriever.get_relevant_documents(question)
-    context = "\n\n".join([doc.page_content for doc in docs])
+    docs = retriever.get_relevant_documents(question) 
+    if not docs:
+        return "죄송합니다. 해당 질문에 관련된 정책 문서를 찾을 수 없습니다.", []
+    
+    # 벡터DB 검색 결과 중 상위 3개 문서 선택히여 필터링 
+    top3_docs, remaining_docs = filter_documents_by_score(docs, top_n=3)
+    context = "\n\n".join([doc.page_content for doc in top3_docs])
 
     # QA 프롬프트 구성
     prompt = QA_PROMPT.format(
@@ -149,8 +160,32 @@ def create_qa_chain(retriever, memory, user_profile, question):
 
     # 메모리에 현재 질문/응답 저장
     memory.save_context({"input": question}, {"output": answer})
-    return answer
+    return answer, remaining_docs  # 레퍼런스 문서도 분리해서 리턴
 
 def get_active_sessions_count():
     """활성 세션 수 반환"""
     return len(session_memories)
+
+def is_housing_policy_question(question: str) -> bool:
+    # 청년 주거 정책 질문 판단 (yes/no) 
+    # 벡터DB 언어와 맞춰서 한국어로 작성 ("청년 주거 정책", "전세자금 대출", "신혼부부" 등 키워드 접근성)
+    routing_prompt = """
+    // Task
+    입력된 question이 "청년 주거 정책"과 관련된 질문인지 판단해주세요.
+    answer는 반드시 "yes" 또는 "no"로만 해주세요.
+
+    // Context
+    청년 주거 정책은 청년층(만 19~39세)을 대상으로 하는 주거 지원 정책을 의미합니다.
+    예: 청년 전세자금 대출, 청년 임대주택, 신혼부부 주택 등
+
+    ---
+    question: {question}
+    answer:""".strip()
+
+    response = call_llm_via_ask(routing_prompt.format(question=question))
+    return response.strip().lower().startswith("yes")
+
+def filter_documents_by_score(docs, top_n=3):
+    # 문서 필터링 함수 (벡터DB 검색 결과 중 상위 3개 문서 선택)
+    sorted_docs = sorted(docs, key=lambda d: -d.metadata.get("score", 0))
+    return sorted_docs[:top_n], sorted_docs[top_n:]
