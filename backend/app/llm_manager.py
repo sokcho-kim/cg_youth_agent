@@ -145,18 +145,10 @@ def extract_user_profile(user_message, session_id):
     
     return current_user_profile, search_query_from_analysis
 
-def create_qa_chain(retriever, memory, user_profile, question):
-    """최종 응답을 생성하고 레퍼런스 문서도 분리해서 리턴"""
-    # QA 프롬프트를 /ask API로 호출하여 답변 생성
-    # 메모리에서 대화 이력 불러오기
-    chat_history = memory.load_memory_variables({})["chat_history"]
-    
-    # 리트리버로 문서 검색
-    docs = retriever.get_relevant_documents(question) 
-    if not docs:
-        # return "죄송합니다. 해당 질문에 관련된 정책 문서를 찾을 수 없습니다.", []
-        # fallback 프롬프트 구성
-        fallback_prompt_template = """
+def create_fallback_answer(user_profile, chat_history, question):
+    # return "죄송합니다. 해당 질문에 관련된 정책 문서를 찾을 수 없습니다.", []
+    # fallback 프롬프트 구성
+    fallback_prompt_template = """
             너는 '서울시 청년 주거 정책 전문 AI'야. 사용자의 질문에 대해 정확하게 대응되는 정책 문서를 찾지 못했지만, 사용자의 상황이 청년 주거와 관련 있다고 판단된다면 아래 지침에 따라 유사 정책을 제안해줘.
 
             ---
@@ -189,13 +181,26 @@ def create_qa_chain(retriever, memory, user_profile, question):
 
             출력은 응답 본문만 자연스럽게 생성해줘. 메타 정보나 JSON 없이 대화체로 작성해.
         """
-        fallback_prompt = fallback_prompt_template.format(
-            user_profile_data=user_profile,
-            chat_history=chat_history,
-            question=question
-        )
-        fallback_answer = call_llm_via_ask(fallback_prompt)
-        return fallback_answer, []
+    fallback_prompt = fallback_prompt_template.format(
+        user_profile_data=user_profile,
+        chat_history=chat_history,
+        question=question
+    )
+    fallback_answer = call_llm_via_ask(fallback_prompt)
+    return fallback_answer, []
+
+
+def create_qa_chain(retriever, memory, user_profile, question):
+    """최종 응답을 생성하고 레퍼런스 문서도 분리해서 리턴"""
+    # QA 프롬프트를 /ask API로 호출하여 답변 생성
+    # 메모리에서 대화 이력 불러오기
+    chat_history = memory.load_memory_variables({})["chat_history"]
+    
+    # 리트리버로 문서 검색
+    docs = retriever.get_relevant_documents(question)
+    if not docs:
+        return create_fallback_answer(user_profile, chat_history, question)
+    
     
     # 벡터DB 검색 결과 중 상위 3개 문서 선택히여 필터링 
     top3_docs, remaining_docs = filter_documents_by_score(docs, top_n=3)
@@ -219,13 +224,13 @@ def get_active_sessions_count():
     return len(session_memories)
 
 def is_housing_policy_question(question: str) -> bool:
-    # 청년 주거 정책 질문 판단 (yes/no) 
-    # 벡터DB 언어와 맞춰서 한국어로 작성 ("청년 주거 정책", "전세자금 대출", "신혼부부" 등 키워드 접근성)
+    # 주거 정책 질문 판단 (yes/no) 
+    # 벡터DB 언어와 맞춰서 한국어로 작성 ("주거 정책", "전세자금 대출", "신혼부부" 등 키워드 접근성)
     routing_prompt = """
-    아래 질문이 청년 주거 정책과 관련된 질문인지 판단해주세요. 반드시 yes 또는 no로만 대답해주세요.
+    아래 질문이 주거 정책과 관련된 질문인지 판단해주세요. 반드시 yes 또는 no로만 대답해주세요.
 
-    [청년 주거 정책 정의]
-    청년 주거 정책은 일반적으로 만 19세~39세 이하 청년을 대상으로 한 다음과 같은 주거 관련 지원을 포함합니다:
+    [주거 정책 정의]
+    주거 정책은 일반적으로 다음과 같은 주거 관련 지원을 포함합니다:
     - 전세자금, 월세 지원
     - 임대주택 공급
     - 자립 지원 주거
