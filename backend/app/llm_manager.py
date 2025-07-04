@@ -6,6 +6,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain_chroma import Chroma
 from app.ask_api import run_llm
+import re
 
 # LLM 호출을 /ask API로만 수행
 ASK_API_URL = os.environ.get("ASK_API_URL", "https://youth-chatbot-backend.onrender.com/ask")
@@ -217,7 +218,22 @@ def create_qa_chain(retriever, memory, user_profile, question):
 
     # 메모리에 현재 질문/응답 저장
     memory.save_context({"input": question}, {"output": answer})
-    return answer, remaining_docs  # 레퍼런스 문서도 분리해서 리턴
+
+    remaining_list = []
+    for doc in remaining_docs:
+        # 정책명 추출
+        match = re.search(r'정책명:([^\n]+)', doc.page_content)
+        title = match.group(1).strip() if match else "정책 정보"
+        # 관련링크 추출
+        url_match = re.search(r'관련링크: *([^\n\s]+)', doc.page_content)
+        url = url_match.group(1).strip() if url_match else ""
+        remaining_list.append({
+            "title": title,
+            "url": url
+        })
+    print("remaining_list >>>> "+str(remaining_list))
+
+    return answer, remaining_list  # 레퍼런스 문서도 분리해서 리턴
 
 def get_active_sessions_count():
     """활성 세션 수 반환"""

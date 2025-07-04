@@ -120,36 +120,22 @@ function removeLoading() {
 // 정책 목록 표시 함수 (remaining_docs용)
 function displayRemainingPolicies(policies) {
     policyList.innerHTML = '';
-    
     if (!policies || policies.length === 0) {
         policySidebar.classList.remove('show');
         return;
     }
-    
     policies.forEach(policy => {
         const policyDiv = document.createElement('div');
         policyDiv.className = 'policy-item';
-        
-        // 정책 데이터 구조에 따라 다르게 처리
-        if (typeof policy === 'string') {
-            policyDiv.innerHTML = `<h4>${policy}</h4>`;
+        if (policy.title && policy.url) {
+            policyDiv.innerHTML = `<a href="${policy.url}" target="_blank" rel="noopener noreferrer" style="color: #667eea; text-decoration: underline;">${policy.title}</a>`;
         } else if (policy.title) {
-            policyDiv.innerHTML = `
-                <h4>${policy.title}</h4>
-                ${policy.description ? `<p>${policy.description}</p>` : ''}
-                ${policy.category ? `<div class="policy-category">${policy.category}</div>` : ''}
-            `;
+            policyDiv.textContent = policy.title;
         } else {
-            policyDiv.innerHTML = `
-                <h4>${policy.name || policy.title || '정책 정보'}</h4>
-                ${policy.content ? `<p>${policy.content}</p>` : ''}
-            `;
+            policyDiv.textContent = "정책 정보";
         }
-        
         policyList.appendChild(policyDiv);
     });
-    
-    // 정책이 있으면 사이드바를 표시
     policySidebar.classList.add('show');
 }
 
