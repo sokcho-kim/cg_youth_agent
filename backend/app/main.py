@@ -95,9 +95,15 @@ async def chat_with_bot(request: ChatRequest):
     # 사용자 프로필 추출
     current_user_profile, search_query_from_analysis = extract_user_profile(user_message, session_id)
 
-    # Step 3: QA 체인 생성 및 답변 생성 (llm 인자 제거)
+    # Step 3: QA 체인 생성 및 답변 생성
     try:
-        answer, remaining_docs = create_qa_chain(retriever, memory, current_user_profile, user_message)
+        answer, remaining_docs = create_qa_chain(
+            retriever=retriever, 
+            memory=memory, 
+            user_profile=current_user_profile, 
+            question=user_message, 
+            search_query=search_query_from_analysis
+        )
         return {"response": answer,
                 "remaining_docs": remaining_docs
         }
