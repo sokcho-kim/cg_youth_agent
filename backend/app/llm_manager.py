@@ -98,6 +98,14 @@ Instructions for Answer Generation:
       > "해당 정책에 대해 관심 있으시군요. 안타깝지만, 정확히 일치하는 정책은 현재 없습니다. 하지만..."  
     - Avoid generic labels like "유사 정책". Instead, introduce alternatives as **"도움이 될 수 있는 정책"**, **"활용 가능한 제도"**.
     - Do not leave the response empty even if exact matches are not found.
+15. **Topic Flexibility Handling**:  
+    If the user's question includes expressions like "최근", "요즘", "새로 나온", "가장 최신" and refers to general policy recommendations, provide the most recently added youth housing policies from the document list, even if they don't match the search query directly.  
+    Example response:  
+    > "요즘 새로 나온 청년 주거 정책을 찾고 계시는군요. 아래는 최근에 업데이트된 주요 정책입니다:"
+    
+    - 정책명: ...
+    - 설명: ...
+    - 신청방법: ...
 """
 
 
