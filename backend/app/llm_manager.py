@@ -2,11 +2,16 @@ import os
 import json
 import re
 import requests
+import logging
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain_chroma import Chroma
 from app.ask_api import run_llm
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # LLM 호출을 /ask API로만 수행
 ASK_API_URL = os.environ.get("ASK_API_URL", "https://youth-chatbot-backend.onrender.com/ask")
@@ -148,6 +153,8 @@ def extract_user_profile(user_message, session_id):
     return current_user_profile, search_query_from_analysis
 
 def create_fallback_answer(user_profile, chat_history, question, search_query):
+    logger.warning(f"[Fallback] Fallback 답변 생성 시작 - 질문: '{question}', 검색쿼리: '{search_query}'")
+    
     # return "죄송합니다. 해당 질문에 관련된 정책 문서를 찾을 수 없습니다.", []
     # fallback 프롬프트 구성
     fallback_prompt_template = """
@@ -173,6 +180,21 @@ def create_fallback_answer(user_profile, chat_history, question, search_query):
             4. 사용자의 상황에 공감하는 말투를 사용하되, 전문적이고 신뢰감 있게 말해줘.
             5. 반드시 한국어로만 응답하고, 영어는 포함하지 마.
             6. 하나의 정책만 추천해도 되지만, 최대 2~3개까지 포함할 수 있어.
+            
+            **상세 지침:**
+            1. **공감적 인사말**: "안녕하세요! [사용자 상황]을 고민하고 계시는군요." 형식으로 시작
+            2. **정책 소개**: 각 정책을 다음 형식으로 구조화:
+               - ✅ 정책명
+               - 📝 설명: 정책의 핵심 내용
+               - 🎯 지원대상: 구체적인 자격 요건
+               - 💡 신청방법: 단계별 신청 절차
+               - 📞 문의: 연락처 정보
+               - 🔗 관련링크: `<a href="URL" target="_blank">자세히 보기</a>` 형식
+            3. **이모지 활용**: ✅📝🎯💡📞🔗 등 적절한 이모지 사용
+            4. **대화 마무리**: "혹시 [관련 주제]에 궁금한 점이나 다른 고민이 있으신가요? 편하게 말씀해주세요!" 형식으로 마무리
+            5. **친근함**: 전문적이면서도 따뜻하고 공감하는 톤 유지
+            6. **간결성**: 핵심 정보 위주로 명확하게 전달
+
 
             출력은 응답 본문만 자연스럽게 생성해줘. 메타 정보나 JSON 없이 대화체로 작성해.
         """
@@ -183,7 +205,11 @@ def create_fallback_answer(user_profile, chat_history, question, search_query):
         search_query=search_query
     )
     fallback_answer = call_llm_via_ask(fallback_prompt)
-    return fallback_answer, []
+    
+    logger.info(f"[Fallback] Fallback 답변 생성 완료 (응답 길이: {len(fallback_answer)}자)")
+    logger.info(f"[Fallback] Fallback 답변 내용: {fallback_answer[:200]}...")
+    
+    return fallback_answer, [], "fallback"
 
 
 def create_qa_chain(retriever, memory, user_profile, question, search_query):
@@ -194,14 +220,21 @@ def create_qa_chain(retriever, memory, user_profile, question, search_query):
     
     # 리트리버로 문서 검색 - search_query를 우선 사용하고, 없으면 question 사용
     search_terms = search_query if search_query and search_query.strip() else question
-    docs = retriever.get_relevant_documents(search_terms)
-    if not docs:
-        return create_fallback_answer(user_profile, chat_history, question, search_query)
+    logger.info(f"[QA Chain] 검색 쿼리: '{search_terms}' (원본 질문: '{question}')")
     
+    docs = retriever.get_relevant_documents(search_terms)
+    logger.info(f"[QA Chain] 검색된 문서 수: {len(docs)}")
+    
+    if not docs:
+        logger.warning(f"[QA Chain] 문서를 찾지 못함 -> Fallback으로 전환")
+        fallback_answer, fallback_remaining, fallback_type = create_fallback_answer(user_profile, chat_history, question, search_query)
+        return fallback_answer, fallback_remaining, fallback_type
     
     # 벡터DB 검색 결과 중 상위 3개 문서 선택히여 필터링 
     top3_docs, remaining_docs = filter_documents_by_score(docs, top_n=3)
     context = "\n\n".join([doc.page_content for doc in top3_docs])
+    
+    logger.info(f"[QA Chain] 상위 문서 수: {len(top3_docs)}, 나머지 문서 수: {len(remaining_docs)}")
 
     # QA 프롬프트 구성
     prompt = QA_PROMPT.format(
@@ -212,6 +245,8 @@ def create_qa_chain(retriever, memory, user_profile, question, search_query):
         search_query=search_query
     )
     answer = call_llm_via_ask(prompt)
+    
+    logger.info(f"[QA Chain] 정상 응답 생성 완료 (응답 길이: {len(answer)}자)")
 
     # 메모리에 현재 질문/응답 저장
     memory.save_context({"input": question}, {"output": answer})
@@ -229,9 +264,9 @@ def create_qa_chain(retriever, memory, user_profile, question, search_query):
             "url": url
         })
         
-    print("remaining_list >>>> "+str(remaining_list))
+    logger.info(f"[QA Chain] remaining_list: {remaining_list}")
 
-    return answer, remaining_list  # 레퍼런스 문서도 분리해서 리턴
+    return answer, remaining_list, "qa_chain"  # 레퍼런스 문서도 분리해서 리턴
 
 def get_active_sessions_count():
     """활성 세션 수 반환"""
