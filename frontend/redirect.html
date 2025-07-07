@@ -17,29 +17,43 @@
 </head>
 <body>
   <h2>정책 페이지를 여는 중입니다...</h2>
-  <p>일부 보안 설정 때문에 처음 시도에 실패할 수 있어요.<br>잠시 후 자동으로 다시 시도됩니다.</p>
+  <p>처음 열리지 않으면 자동으로 다시 열어드릴게요.<br>문제가 계속되면 아래 버튼을 눌러주세요.</p>
   <button id="retry">🔁 다시 열기</button>
 
   <script>
     const target = new URLSearchParams(location.search).get('target');
+    sessionStorage.setItem('lastTarget', target);
 
-    function tryOpen() {
-      if (target) {
-        sessionStorage.setItem('lastTarget', target);
-        window.open(target, '_blank');
+    function openWindow() {
+      if (target) window.open(target, '_blank');
+    }
+
+    async function verifyAndRetryIfNeeded() {
+      openWindow();  // 1차 시도
+
+      try {
+        const response = await fetch(target, {
+          method: 'GET',
+          redirect: 'follow',
+          mode: 'cors'
+        });
+        const finalUrl = response.url;
+
+        if (finalUrl.includes('/index.do')) {
+          // 튕겼음 → 1.5초 후 다시 열기
+          setTimeout(openWindow, 1500);
+        }
+      } catch (e) {
+        // CORS 때문에 확인 불가 → 그냥 한 번 더 열자
+        setTimeout(openWindow, 1500);
       }
     }
 
-    // 1차 시도
-    tryOpen();
-
-    // 2차 자동 재시도 (1.5초 후)
-    setTimeout(() => {
-      tryOpen();
-    }, 1500);
+    // 시작
+    verifyAndRetryIfNeeded();
 
     // 수동 재시도 버튼
-    document.getElementById('retry').addEventListener('click', tryOpen);
+    document.getElementById('retry').addEventListener('click', openWindow);
   </script>
 </body>
 </html>
