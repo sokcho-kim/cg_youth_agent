@@ -6,7 +6,6 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain_chroma import Chroma
 from app.ask_api import run_llm
-import re
 
 # LLM 호출을 /ask API로만 수행
 ASK_API_URL = os.environ.get("ASK_API_URL", "https://youth-chatbot-backend.onrender.com/ask")
@@ -63,7 +62,10 @@ Retrieved Policy Documents:
 {context}
 
 ---
-User's Question: {question}
+User's Original Question: {question}
+
+---
+User's Optimized Search Query: {search_query}
 
 ---
 Instructions for Answer Generation:
@@ -89,18 +91,15 @@ Instructions for Answer Generation:
    "**죄송합니다. 저는 서울시 청년 주거 정책 전용 AI입니다. 관련된 질문만 답변드릴 수 있어요 🙇**"
 12. **Icons**: Please include appropriate icons (e.g., ✅, 📌, ⚠️) to enhance clarity and readability.
 13. **Personalization**: Make sure your response is accurate and helpful, accurate, and also personalize the explanation based on the user's context. Include the policy URL if it exists in the retrieved documents.
-14. **Fallback Handling**:  
-If there is no directly matching policy, but the user's question is still related to youth housing issues, do not return an empty or unhelpful answer.  
-Instead, follow this structure:
-- Express empathy (e.g., "안타깝지만...")
-- Suggest the most similar or potentially helpful policy.
-- Example:
-
-"안타깝지만, 전세보증금 반환 피해자에 대한 직접적인 지원 정책은 현재 없습니다.  
-하지만 다음과 같은 정책이 유사하게 도움이 될 수 있습니다:  
-- 정책명: 청년 법률 상담 지원  
-- 설명: 부동산 계약 등 분쟁 시 무료 법률 상담 제공
+14. **Fallback Handling** (when no direct match found):  
+    - If the question implies emotional distress (e.g., "사기", "보증금 피해", "못 돌려받았어요"), begin your response with sincere empathy. Example:  
+      > "전세 사기를 당하셨군요. 정말 안타깝고 많이 놀라셨을 것 같아요."  
+    - If the question shows interest in a particular policy or topic (e.g., "청년 월세 지원 있나요?", "이런 정책 궁금해요"), begin with:  
+      > "해당 정책에 대해 관심 있으시군요. 안타깝지만, 정확히 일치하는 정책은 현재 없습니다. 하지만..."  
+    - Avoid generic labels like "유사 정책". Instead, introduce alternatives as **"도움이 될 수 있는 정책"**, **"활용 가능한 제도"**.
+    - Do not leave the response empty even if exact matches are not found.
 """
+
 
 QA_PROMPT = PromptTemplate.from_template(qa_prompt_template)
 
@@ -146,7 +145,7 @@ def extract_user_profile(user_message, session_id):
     
     return current_user_profile, search_query_from_analysis
 
-def create_fallback_answer(user_profile, chat_history, question):
+def create_fallback_answer(user_profile, chat_history, question, search_query):
     # return "죄송합니다. 해당 질문에 관련된 정책 문서를 찾을 수 없습니다.", []
     # fallback 프롬프트 구성
     fallback_prompt_template = """
@@ -158,6 +157,9 @@ def create_fallback_answer(user_profile, chat_history, question):
 
             # USER'S QUESTION #
             {question}
+            
+            # SEARCH QUERY #
+            {search_query}
 
             # CHAT HISTORY #
             {chat_history}
@@ -185,22 +187,23 @@ def create_fallback_answer(user_profile, chat_history, question):
     fallback_prompt = fallback_prompt_template.format(
         user_profile_data=user_profile,
         chat_history=chat_history,
-        question=question
+        question=question,
+        search_query=search_query
     )
     fallback_answer = call_llm_via_ask(fallback_prompt)
     return fallback_answer, []
 
 
-def create_qa_chain(retriever, memory, user_profile, question):
+def create_qa_chain(retriever, memory, user_profile, question, search_query):
     """최종 응답을 생성하고 레퍼런스 문서도 분리해서 리턴"""
     # QA 프롬프트를 /ask API로 호출하여 답변 생성
     # 메모리에서 대화 이력 불러오기
     chat_history = memory.load_memory_variables({})["chat_history"]
     
     # 리트리버로 문서 검색
-    docs = retriever.get_relevant_documents(question)
+    docs = retriever.get_relevant_documents(search_query)
     if not docs:
-        return create_fallback_answer(user_profile, chat_history, question)
+        return create_fallback_answer(user_profile, chat_history, search_query)
     
     
     # 벡터DB 검색 결과 중 상위 3개 문서 선택히여 필터링 
@@ -212,28 +215,14 @@ def create_qa_chain(retriever, memory, user_profile, question):
         user_profile_data=user_profile,
         chat_history=chat_history,
         context=context,
-        question=question
+        question=question,
+        search_query=search_query
     )
     answer = call_llm_via_ask(prompt)
 
     # 메모리에 현재 질문/응답 저장
     memory.save_context({"input": question}, {"output": answer})
-
-    remaining_list = []
-    for doc in remaining_docs:
-        # 정책명 추출
-        match = re.search(r'정책명:([^\n]+)', doc.page_content)
-        title = match.group(1).strip() if match else "정책 정보"
-        # 관련링크 추출
-        url_match = re.search(r'관련링크: *([^\n\s]+)', doc.page_content)
-        url = url_match.group(1).strip() if url_match else ""
-        remaining_list.append({
-            "title": title,
-            "url": url
-        })
-    print("remaining_list >>>> "+str(remaining_list))
-
-    return answer, remaining_list  # 레퍼런스 문서도 분리해서 리턴
+    return answer, remaining_docs  # 레퍼런스 문서도 분리해서 리턴
 
 def get_active_sessions_count():
     """활성 세션 수 반환"""
