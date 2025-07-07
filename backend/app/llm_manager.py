@@ -65,6 +65,9 @@ Retrieved Policy Documents:
 User's Original Question: {question}
 
 ---
+User's Optimized Search Query: {search_query}
+
+---
 Instructions for Answer Generation:
 1. **Directness**: Address the user's question directly and clearly.
 2. **Accuracy**: Base your response primarily on the "Retrieved Policy Documents." If they do not provide a direct match, you may recommend the most contextually relevant policies from within them.3. **Completeness**: Include all relevant policy details available in the documents.
@@ -144,7 +147,7 @@ def extract_user_profile(user_message, session_id):
     
     return current_user_profile, search_query_from_analysis
 
-def create_fallback_answer(user_profile, chat_history, question):
+def create_fallback_answer(user_profile, chat_history, question, search_query):
     # return "죄송합니다. 해당 질문에 관련된 정책 문서를 찾을 수 없습니다.", []
     # fallback 프롬프트 구성
     fallback_prompt_template = """
@@ -159,6 +162,9 @@ def create_fallback_answer(user_profile, chat_history, question):
 
             # CHAT HISTORY #
             {chat_history}
+            
+            # SEARCH QUERY #
+            {search_query}
 
             # 지침:
             1. 사용자의 질문이 전세금, 자취, 월세, 이사, 독립, 피해 등과 관련이 있으면, 주거 문제로 간주하고 반드시 응답을 생성해야 해.
@@ -184,21 +190,23 @@ def create_fallback_answer(user_profile, chat_history, question):
         user_profile_data=user_profile,
         chat_history=chat_history,
         question=question,
+        search_query=search_query
     )
     fallback_answer = call_llm_via_ask(fallback_prompt)
     return fallback_answer, []
 
 
-def create_qa_chain(retriever, memory, user_profile, question):
+def create_qa_chain(retriever, memory, user_profile, question, search_query):
     """최종 응답을 생성하고 레퍼런스 문서도 분리해서 리턴"""
     # QA 프롬프트를 /ask API로 호출하여 답변 생성
     # 메모리에서 대화 이력 불러오기
     chat_history = memory.load_memory_variables({})["chat_history"]
     
-    # 리트리버로 문서 검색
-    docs = retriever.get_relevant_documents(question)
+    # 리트리버로 문서 검색 - search_query를 우선 사용하고, 없으면 question 사용
+    search_terms = search_query if search_query and search_query.strip() else question
+    docs = retriever.get_relevant_documents(search_terms)
     if not docs:
-        return create_fallback_answer(user_profile, chat_history, question)
+        return create_fallback_answer(user_profile, chat_history, question, search_query)
     
     
     # 벡터DB 검색 결과 중 상위 3개 문서 선택히여 필터링 
@@ -211,6 +219,7 @@ def create_qa_chain(retriever, memory, user_profile, question):
         chat_history=chat_history,
         context=context,
         question=question,
+        search_query=search_query
     )
     answer = call_llm_via_ask(prompt)
 
