@@ -16,21 +16,30 @@
   </style>
 </head>
 <body>
-  <h2>페이지를 여는 중입니다...</h2>
-  <p>링크가 열리지 않으면 다시 시도해주세요.</p>
+  <h2>정책 페이지를 여는 중입니다...</h2>
+  <p>일부 보안 설정 때문에 처음 시도에 실패할 수 있어요.<br>잠시 후 자동으로 다시 시도됩니다.</p>
   <button id="retry">🔁 다시 열기</button>
 
   <script>
     const target = new URLSearchParams(location.search).get('target');
-    if (target) {
-      sessionStorage.setItem('lastTarget', target);
-      window.open(target, '_blank');
+
+    function tryOpen() {
+      if (target) {
+        sessionStorage.setItem('lastTarget', target);
+        window.open(target, '_blank');
+      }
     }
 
-    document.getElementById('retry').addEventListener('click', () => {
-      const last = sessionStorage.getItem('lastTarget');
-      if (last) window.open(last, '_blank');
-    });
+    // 1차 시도
+    tryOpen();
+
+    // 2차 자동 재시도 (1.5초 후)
+    setTimeout(() => {
+      tryOpen();
+    }, 1500);
+
+    // 수동 재시도 버튼
+    document.getElementById('retry').addEventListener('click', tryOpen);
   </script>
 </body>
 </html>
