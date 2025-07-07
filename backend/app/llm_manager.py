@@ -209,7 +209,7 @@ def create_fallback_answer(user_profile, chat_history, question, search_query):
     logger.info(f"[Fallback] Fallback 답변 생성 완료 (응답 길이: {len(fallback_answer)}자)")
     logger.info(f"[Fallback] Fallback 답변 내용: {fallback_answer[:200]}...")
     
-    return fallback_answer, [], "fallback"
+    return fallback_answer, []
 
 
 def create_qa_chain(retriever, memory, user_profile, question, search_query):
@@ -227,8 +227,7 @@ def create_qa_chain(retriever, memory, user_profile, question, search_query):
     
     if not docs:
         logger.warning(f"[QA Chain] 문서를 찾지 못함 -> Fallback으로 전환")
-        fallback_answer, fallback_remaining, fallback_type = create_fallback_answer(user_profile, chat_history, question, search_query)
-        return fallback_answer, fallback_remaining, fallback_type
+        return create_fallback_answer(user_profile, chat_history, question, search_query)
     
     # 벡터DB 검색 결과 중 상위 3개 문서 선택히여 필터링 
     top3_docs, remaining_docs = filter_documents_by_score(docs, top_n=3)
@@ -266,7 +265,7 @@ def create_qa_chain(retriever, memory, user_profile, question, search_query):
         
     logger.info(f"[QA Chain] remaining_list: {remaining_list}")
 
-    return answer, remaining_list, "qa_chain"  # 레퍼런스 문서도 분리해서 리턴
+    return answer, remaining_list  # 레퍼런스 문서도 분리해서 리턴
 
 def get_active_sessions_count():
     """활성 세션 수 반환"""
