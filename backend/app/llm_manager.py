@@ -68,6 +68,7 @@ User's Original Question: {question}
 Instructions for Answer Generation:
 1. **Directness**: Address the user's question directly and clearly.
 2. **Accuracy**: Base your response primarily on the "Retrieved Policy Documents." If they do not provide a direct match, you may recommend the most contextually relevant policies from within them.3. **Completeness**: Include all relevant policy details available in the documents.
+3. **Completeness**: Include all relevant policy details available in the documents.
 4. **User-centric**: Adapt the tone and content to the user's profile (e.g., "서울 거주 20대 미혼 여성"). If profile is missing or empty, use general language.
 5. **Content Selection**: Only include the 2~3 most relevant policies in the main answer. List remaining relevant policies as a **reference list** with brief summaries if it exists.
 6. **Structure**: Organize content using bullet points or numbered lists for clarity.
