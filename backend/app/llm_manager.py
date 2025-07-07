@@ -46,6 +46,13 @@ You are an expert policy analyst. Analyze the user's request and extract the fol
 
 Output as JSON. Leave empty string if information is not available.
 
+If the user's message does not explicitly mention "정책" (policy), but still expresses needs, interests, or problems related to housing (e.g., "전세 살고 싶어요", "월세 너무 비싸요", "이사 가고 싶어요"), reframe it as a policy-related query.  
+
+For example:
+- "전세 살고 싶어요" → "청년 전세자금 지원 정책"
+- "월세 부담돼요" → "청년 월세 지원 정책"
+- "이사 가고 싶어요" → "청년 임대주택 지원 정책"
+
 ---
 User's Request: {user_input}
 """
@@ -105,6 +112,8 @@ Begin your response with a friendly and empathetic greeting when appropriate. Us
 "안녕하세요! [User’s situation]을 고민하고 계시는군요."
 
 This helps establish trust and warmth before introducing relevant policy information.
+17. Policy Intent Recognition:  
+If the user's message does not include the word "정책" explicitly but clearly implies a need, concern, or interest related to youth housing (e.g., affordability, rental type, housing transition), interpret it as a policy-related request and proceed with appropriate recommendations.
 """
 
 
