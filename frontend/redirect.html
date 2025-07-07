@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>페이지 여는 중...</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding-top: 60px; }
+    button {
+      padding: 10px 18px;
+      font-size: 15px;
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      background: #f4f4f4;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>페이지를 여는 중입니다...</h2>
+  <p>링크가 열리지 않으면 다시 시도해주세요.</p>
+  <button id="retry">🔁 다시 열기</button>
+
+  <script>
+    const target = new URLSearchParams(location.search).get('target');
+    if (target) {
+      sessionStorage.setItem('lastTarget', target);
+      window.open(target, '_blank');
+    }
+
+    document.getElementById('retry').addEventListener('click', () => {
+      const last = sessionStorage.getItem('lastTarget');
+      if (last) window.open(last, '_blank');
+    });
+  </script>
+</body>
+</html>
